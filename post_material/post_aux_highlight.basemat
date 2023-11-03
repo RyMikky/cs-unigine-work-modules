@@ -1,0 +1,416 @@
+BaseMaterial new_post_highlight <options_hidden=1 preview_hidden=1 var_prefix=var texture_prefix=tex>
+{
+    Texture2D source     <source=procedural internal=true>
+	Texture2D color      <source=procedural internal=true>
+	Texture2D <source=auxiliary>
+
+    Group "Base config"
+	{
+        Color match_color = [0.5 0.5 0.5 1.0]
+        Color area_color = [0.0,1.0,0.0,1.0]
+        Slider area_color_alpha = 1.0f <min=0.0 max=1.0>	
+		Slider correction = 1.0f <min=0.0 max=5.0>	
+		Slider saturation = 1.0f <min=0.0 max=10.0>	
+	}
+
+    Group "Debug data" 
+    {
+        Int screen_width = 0
+        Int screen_height = 0
+    }
+
+    Group "Debug flags"
+    {
+        State debug_pre_auxiliary = false;
+        State debug_pre_area_extension = false;
+        State debug_pre_area_alpha = false;
+        State debug_pre_area_saturation = false;
+    }
+
+
+    /*
+        Данный фрагментный шейдер затирает на экране (приводит к float4(0,0,0,0)) всё, что не соответствет условию, по сути создаёт маску
+    */
+    Shader pre_auxiliary=
+	#{
+		#include <core/materials/shaders/render/common.h>
+		
+		STRUCT_FRAG_BEGIN
+			INIT_COLOR(float4)
+		STRUCT_FRAG_END
+		
+		MAIN_FRAG_BEGIN(FRAGMENT_IN)
+
+            float4 color = TEXTURE_BIAS_ZERO(tex_color, IN_UV.xy);           // берем текущий цвет, обработка будет идти по пиксельно
+
+            if (color == var_match_color)                                    // для корректной выборки элемента должно быть соответствие засветки по цвету
+            {
+                OUT_COLOR = color;                                           // в случае совпадения, заливаем видимую часть объекта соответствующим цветом
+            }
+            else 
+            {
+                OUT_COLOR = float4(0,0,0,0);                                 // иначе обнуляем пиксели как по цвету так и по альфе
+            }
+
+		MAIN_FRAG_END
+	#}
+
+    Pass prepare_auxiliary_operation
+	{
+		Fragment = pre_auxiliary
+	}
+
+    /*
+        Данный фрагментный шейдер предназначен для формирования контура выбранного цвета вокруг подготовленной выше маски
+    */
+    Shader pre_area_ext=
+	#{
+		#include <core/materials/shaders/render/common.h>
+		
+        STATICVAR int MATRIX_SIZE = 9;
+
+		STRUCT_FRAG_BEGIN
+			INIT_COLOR(float4)
+		STRUCT_FRAG_END
+
+        bool CheckTexelMatrix(float2 offset, float2 zero_uv)
+        {
+            /*
+                матрица координат заполняется по схеме
+                    1 2 3
+                    4 5 6
+                    7 8 9  
+                где 5 - базовый тексель
+            */
+
+            float2[] matrix = 
+            {
+                (zero_uv + offset * float2(-1, 1)), (zero_uv + offset * float2(0, 1)), (zero_uv + offset * float2(1, 1)),
+                (zero_uv + offset * float2(-1, 0)), (zero_uv + offset * float2(0, 0)), (zero_uv + offset * float2(1, 0)),
+                (zero_uv + offset * float2(-1, -1)), (zero_uv + offset * float2(0, -1)), (zero_uv + offset * float2(1, -1))
+            };
+
+            float4[MATRIX_SIZE] texels;
+            for (int i = 0; i != MATRIX_SIZE; ++i)
+            {
+                texels[i] = TEXTURE_BIAS_ZERO(tex_color, matrix[i]);
+            }
+
+            for (int i = 0; i != MATRIX_SIZE; ++i)
+            {
+                if (texels[i] == var_match_color) return true;
+            }
+
+            return false;
+        }
+
+        // проверка на "пустоту" нулевого текселя
+        bool CheckZeroTexel(float2 zero_uv)
+        {
+            return TEXTURE_BIAS_ZERO(tex_color, zero_uv) == float4(0,0,0,0);
+        }
+
+        // проверка позиции на краю экрана
+        bool CheckScreenEdgeTexel(float4 coord)
+        {
+            bool x_screen_edge = ((coord.x >= 0 && coord.x < var_correction) || (coord.x > (var_screen_width - var_correction) && coord.x <= var_screen_width));
+            bool y_screen_edge = ((coord.y >= 0 && coord.y < var_correction) || (coord.y > (var_screen_height - var_correction) && coord.y <= var_screen_height));
+
+            if (x_screen_edge) return x_screen_edge;
+            if (y_screen_edge) return y_screen_edge;
+
+            return false;
+        }
+
+        // базовый метод проверки текселя под закраску
+        bool CheckTexel(float2 offset, float2 zero_uv, float4 coord)
+        {
+            /*
+                Должны быть соблюдены три условия:
+                1. Тексель не расположен на границах экрана
+                2. Тексель является "пустым" - float4(0,0,0,0)
+                3. Радом с обрабатываемым текселем есть соседи требуемого цвета
+            */
+
+            if (CheckScreenEdgeTexel(coord) || !CheckZeroTexel(zero_uv) || !CheckTexelMatrix(offset,zero_uv)) return false;
+            return true;
+        }
+		
+		MAIN_FRAG_BEGIN(FRAGMENT_IN)
+
+            float4 color = TEXTURE_BIAS_ZERO(tex_color, IN_UV.xy);                           // сохраняем текущий цвет пикселя
+            bool check_texel = CheckTexel(s_viewport.zw, IN_UV.xy, IN_POSITION);             // вся логика реализованна в методах выше
+            
+            if (check_texel)
+            {
+                OUT_COLOR = var_area_color;          // в случае успешного прохождения всех модулей, пиксел будет закрашен в цвет рамки
+            }
+
+		MAIN_FRAG_END
+	#}
+
+    Pass prepare_area_extension
+	{
+		Fragment = pre_area_ext
+	}
+
+    /*
+        Данный фрагментный шейдер затирает ранее созданную маску, оставляя только контур, сформированный ранее
+    */
+    Shader pre_area_alpha=
+	#{
+		#include <core/materials/shaders/render/common.h>
+		
+		STRUCT_FRAG_BEGIN
+			INIT_COLOR(float4)
+		STRUCT_FRAG_END
+		
+		MAIN_FRAG_BEGIN(FRAGMENT_IN)
+
+            float4 color = TEXTURE_BIAS_ZERO(tex_color, IN_UV.xy);           // берем текущий цвет, обработка будет идти по пиксельно
+
+            if (color == var_match_color)                                    // для корректной выборки элемента должно быть соответствие засветки по цвету
+            {
+                OUT_COLOR = float4(0,0,0,0);                                 // в случае совпадения цвета, заливаем фигуру чёрным, непрозрачным цветом
+            }
+            else 
+            {
+                OUT_COLOR = color;                                           // иначе оставляем цвет не тронутым
+            }
+
+		MAIN_FRAG_END
+	#}    
+
+    Pass prepare_area_alpha
+	{
+		Fragment = pre_area_alpha
+	}
+
+    /*
+        Данный фрагментный шейдер увеличивает толщину контура, сформированного ранее
+    */
+    Shader pre_area_sat=
+	#{
+		#include <core/materials/shaders/render/common.h>
+		
+        STATICVAR int MATRIX_SIZE = 9;
+
+		STRUCT_FRAG_BEGIN
+			INIT_COLOR(float4)
+		STRUCT_FRAG_END
+
+        bool CheckTexelMatrix(float2 offset, float2 zero_uv)
+        {
+            /*
+                матрица координат заполняется по схеме
+                    1 2 3
+                    4 5 6
+                    7 8 9  
+                где 5 - базовый тексель
+            */
+
+            float2[] matrix = 
+            {
+                (zero_uv + offset * float2(-1, 1)), (zero_uv + offset * float2(0, 1)), (zero_uv + offset * float2(1, 1)),
+                (zero_uv + offset * float2(-1, 0)), (zero_uv + offset * float2(0, 0)), (zero_uv + offset * float2(1, 0)),
+                (zero_uv + offset * float2(-1, -1)), (zero_uv + offset * float2(0, -1)), (zero_uv + offset * float2(1, -1))
+            };
+
+            float4[MATRIX_SIZE] texels;
+            for (int i = 0; i != MATRIX_SIZE; ++i)
+            {
+                texels[i] = TEXTURE_BIAS_ZERO(tex_color, matrix[i]);
+            }
+
+            for (int i = 0, j = 0; i != MATRIX_SIZE; ++i)
+            {
+                if (j > 1) return true;
+                if (texels[i] == var_area_color) j++;
+            }
+
+            return false;
+        }
+
+        // проверка на "пустоту" нулевого текселя
+        bool CheckZeroTexel(float2 zero_uv)
+        {
+            return TEXTURE_BIAS_ZERO(tex_color, zero_uv) == float4(0,0,0,0);
+        }
+
+        // проверка позиции на краю экрана
+        bool CheckScreenEdgeTexel(float4 coord)
+        {
+            bool x_screen_edge = ((coord.x >= 0 && coord.x < var_correction) || (coord.x > (var_screen_width - var_correction) && coord.x <= var_screen_width));
+            bool y_screen_edge = ((coord.y >= 0 && coord.y < var_correction) || (coord.y > (var_screen_height - var_correction) && coord.y <= var_screen_height));
+
+            if (x_screen_edge) return x_screen_edge;
+            if (y_screen_edge) return y_screen_edge;
+
+            return false;
+        }
+
+        // базовый метод проверки текселя под закраску
+        bool CheckTexel(float2 offset, float2 zero_uv, float4 coord)
+        {
+            /*
+                Должны быть соблюдены три условия:
+                1. Тексель не расположен на границах экрана
+                2. Тексель является "пустым" - float4(0,0,0,0)
+                3. Радом с обрабатываемым текселем есть соседи требуемого цвета
+            */
+
+            if (CheckScreenEdgeTexel(coord) || !CheckZeroTexel(zero_uv) || !CheckTexelMatrix(offset,zero_uv)) return false;
+            return true;
+        }
+		
+		MAIN_FRAG_BEGIN(FRAGMENT_IN)
+
+            float4 color = TEXTURE_BIAS_ZERO(tex_color, IN_UV.xy);                           // сохраняем текущий цвет пикселя
+            bool check_texel = CheckTexel(s_viewport.zw, IN_UV.xy, IN_POSITION);             // вся логика реализованна в методах выше
+            
+            if (check_texel)
+            {
+                OUT_COLOR = var_area_color;          // в случае успешного прохождения всех модулей, пиксел будет закрашен в цвет рамки
+            }
+            else 
+            {
+                OUT_COLOR = color;   
+            }
+
+		MAIN_FRAG_END
+	#}  
+
+    Pass prepare_area_saturation
+	{
+        Fragment = pre_area_sat
+	}
+
+    /*
+        Финальный шейдер, который собирает всё воедино
+    */
+    Shader calculate_textures=
+	#{
+		#include <core/materials/shaders/render/common.h>
+		
+		STRUCT_FRAG_BEGIN
+			INIT_COLOR(float4)
+		STRUCT_FRAG_END
+		
+		MAIN_FRAG_BEGIN(FRAGMENT_IN)
+
+            float4 mask_color = TEXTURE_BIAS_ZERO(tex_color, IN_UV.xy);           // берем пиксель из маски
+            float4 source_color = TEXTURE_BIAS_ZERO(tex_source, IN_UV.xy);        // берем пиксель из исходника
+
+            if (mask_color == float4(0,0,0,0))                                    // проверяем что взят не пустой пиксель в маске
+            {
+                OUT_COLOR = source_color;                                         // если пустота, то заливаем исходником
+            }
+            else 
+            {
+                //OUT_COLOR = mask_color;                                           // иначе оставляем цвет маски
+                OUT_COLOR = lerp(source_color, mask_color, toFloat4(var_area_color_alpha));
+            }
+            
+		MAIN_FRAG_END
+	#}   
+
+    Pass final_render
+	{
+		Fragment = calculate_textures
+	}
+
+    Expression RENDER_CALLBACK_END_POST_MATERIALS=
+	#{
+        // записываем и сохраняем текущее разрешение экрана
+		int screen_width = engine.render_state.getWidth();
+		int screen_height = engine.render_state.getHeight();
+        // сохраняем по номеру
+        setParameter(5, screen_width);
+        setParameter(6, screen_height);
+
+        // записываем базовую текступу и темпораль
+		Texture source = engine.render.getTemporaryTexture(engine.render_state.getScreenColorTexture());
+		Texture temp = engine.render.getTemporaryTexture2D(screen_width, screen_height, TEXTURE_FORMAT_RGBA8, TEXTURE_SAMPLER_FILTER_LINEAR | TEXTURE_FORMAT_USAGE_RENDER);
+
+        /* 1 этап - обработка контура по auxiliary */
+        // загружаем в color текущую засветку
+		setTexture("color", engine.renderer.getTextureAuxiliary());                                          
+
+        if (getState("debug_pre_auxiliary"))
+        {
+            // выполняем подготовку контура засветки сразу на экран;
+            renderPassToTexture("prepare_auxiliary_operation", engine.render_state.getScreenColorTexture());       
+        }
+        else 
+        {
+            // выполняем подготовку контура засветки в temp;
+            renderPassToTexture("prepare_auxiliary_operation", temp);    
+            // загружаем в color ранее подготовленную текстуру из temp для работы на втором этапе
+            setTexture("color", temp);                                             
+        }
+
+        /* 2 этап - выполняем увеличение ширины контура засветки */
+        if (!getState("debug_pre_auxiliary") && getState("debug_pre_area_extension"))
+        {
+            // выполняем дополнительную обводку фигуры в маске auxiliary и сразу выводим на экран
+            renderPassToTexture("prepare_area_extension", engine.render_state.getScreenColorTexture());  
+        }
+        else if (!getState("debug_pre_auxiliary") && !getState("debug_pre_area_extension"))
+        {
+            // выполняем дополнительную обводку фигуры в маске auxiliary и сохраняем в темпораль
+            renderPassToTexture("prepare_area_extension", temp);
+            // загружаем в color ранее подготовленную текстуру из temp для работы на третьем этапе
+            setTexture("color", temp);   
+        }
+
+        /* 3 этап - выполняем затирку внутренней маски */   
+        if (!getState("debug_pre_auxiliary") && !getState("debug_pre_area_extension") && getState("debug_pre_area_alpha"))
+        {
+            // выполняем затирку внутренней маски и сразу выводим на экран
+            renderPassToTexture("prepare_area_alpha", engine.render_state.getScreenColorTexture());  
+        }
+        else if (!getState("debug_pre_auxiliary") && !getState("debug_pre_area_extension") && !getState("debug_pre_area_alpha"))
+        {
+            // выполняем затирку внутренней маски и сохраняем в темпораль
+            renderPassToTexture("prepare_area_alpha", temp);
+            // загружаем в color ранее подготовленную текстуру из temp для работы на четвёртом этапе
+            setTexture("color", temp);   
+        }
+
+        /* 4 этап - выполняем насыщение линии контура */
+        int count = round(getParameter("saturation"));
+        for (int i = 0; i != count; i++)
+        {   
+            if (!getState("debug_pre_auxiliary") && !getState("debug_pre_area_extension") && !getState("debug_pre_area_alpha") && getState("debug_pre_area_saturation"))
+            {
+                // выполняем насыщение линии контура и сразу выводим на экран
+                renderPassToTexture("prepare_area_saturation", engine.render_state.getScreenColorTexture());  
+            }
+            else if (!getState("debug_pre_auxiliary") && !getState("debug_pre_area_extension") && !getState("debug_pre_area_alpha") && !getState("debug_pre_area_saturation"))
+            {
+                // выполняем насыщение линии контура и сохраняем в темпораль
+                renderPassToTexture("prepare_area_saturation", temp);
+                // загружаем в color ранее подготовленную текстуру из temp для работы на четвёртом этапе
+                setTexture("color", temp);  
+            }
+        }
+
+        /* 5 этап - выполняем финальную склейку текстур */
+        // загружаем базовую исходную текстуру
+        setTexture("source", source);
+
+        if (!getState("debug_pre_auxiliary") && !getState("debug_pre_area_extension") && !getState("debug_pre_area_alpha") && !getState("debug_pre_area_saturation"))
+        {
+            // выполняем финальную склейку сразу на экран, если не включены флаги дебага
+            renderPassToTexture("final_render", engine.render_state.getScreenColorTexture()); 
+        }
+		
+        // сбрасываем в нуль буферы текстур
+        setTexture("source", NULL);		
+        setTexture("color", NULL);	
+		
+        // выгружаем текстуры рендера
+		engine.render.releaseTemporaryTexture(source);
+		engine.render.releaseTemporaryTexture(temp);	
+	#}
+}

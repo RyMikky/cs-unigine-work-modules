@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<asset version="2.16.1.0">
+	<guid>86b7a7bca1f35febcbf5744ebfdaef559535f8b0</guid>
+	<type>component</type>
+	<hash>e7299ec6</hash>
+	<runtimes>
+		<runtime id="86b7a7bca1f35febcbf5744ebfdaef559535f8b0" name="SerializeNodeObject.cs" link="0"/>
+		<runtime id="5bd67492bb070ac997b79594b1ce83e36da317e6" name="SerializeNodeObject.prop" link="1" type="4"/>
+	</runtimes>
+</asset>
