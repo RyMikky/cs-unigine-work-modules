@@ -11,25 +11,25 @@ using System;
 [Component(PropertyGuid = "5dfaf545f3a3e5e05c38dfbf6e1f6a12b40c8249")]
 public class SerializeHandler : Component
 {
-	static readonly string STREAM_MODE_READ_ONLY = "r";
-	static readonly string STREAM_MODE_READ_BINARY = "rb";
-	static readonly string STREAM_MODE_WRITE = "w";
-	static readonly string STREAM_MODE_WRITE_BINARY = "wb";
-	static readonly string STREAM_MODE_APPEND = "a";
-	static readonly string STREAM_MODE_APPEND_BINARY = "ab";
+	protected static readonly string STREAM_MODE_READ_ONLY = "r";
+	protected static readonly string STREAM_MODE_READ_BINARY = "rb";
+	protected static readonly string STREAM_MODE_WRITE = "w";
+	protected static readonly string STREAM_MODE_WRITE_BINARY = "wb";
+	protected static readonly string STREAM_MODE_APPEND = "a";
+	protected static readonly string STREAM_MODE_APPEND_BINARY = "ab";
 
-	static readonly string DATA_FOLDER = "../data/";
-	static readonly string BINARY_FOLDER = "../bin/";
+	protected static readonly string DATA_FOLDER = "../data/";
+	protected static readonly string BINARY_FOLDER = "../bin/";
 
-	enum ROOT {
+	public enum ROOT {
 		DATA, BINARY
 	}
 
-	static readonly string SHUTDOWN_SUFFIX = "_sd_backup";                // суффикс файла сохранения при выклчюении
-	static readonly string DEFAULT_SUFFIX = "_ds_backup";                 // суффикс сохраненных базовых настроек мира
-	static readonly string REGULAR_SUFFIX = "_rt_backup";                 // обычный суффикс файла сохранения по времени
-	static readonly string PATH_LIST_SUFFIX = "_pl_backup";               // суффикс для сохранения листа с данными
-	static readonly string STAGE_SUFFIX = "_st_backup";                   // суффикс для сохранения стадии
+	protected static readonly string SHUTDOWN_SUFFIX = "_sd_backup";                // суффикс файла сохранения при выклчюении
+	protected static readonly string DEFAULT_SUFFIX = "_ds_backup";                 // суффикс сохраненных базовых настроек мира
+	protected static readonly string REGULAR_SUFFIX = "_rt_backup";                 // обычный суффикс файла сохранения по времени
+	protected static readonly string PATH_LIST_SUFFIX = "_pl_backup";               // суффикс для сохранения листа с данными
+	protected static readonly string STAGE_SUFFIX = "_st_backup";                   // суффикс для сохранения стадии
 
 	static readonly string DATA_STAMP = @"[0-9]{4}-[0-9]{2}-[0-9]{2}-[0-9]{2}-[0-9]{2}-[0-9]{2}";     // штамп для времени
 	static readonly string META_STAMP = @"meta";
@@ -39,13 +39,13 @@ public class SerializeHandler : Component
 	/// Доступно как статическое размещение в общей логике игры, так и в каждом конкретном игровом мире.
 	/// Запись инофрмации осуществляется или для всех имеющихся нод, или для отмеченных специальным модулем-свойством SerializeItem
 	/// </summary>
-	public enum MODE_PL
-	{
-		DIRECT_WORLD_ITEMS,                 // размещение только в одном мире, запись только специальных нод с модулем SerializeItem
-		DIRECT_WORLD_NODES,                 // размещение только в одном мире, запись всех нод записанных в игровом мире
-		STATIC_ALL_ITEMS,                   // статическое размещение в AppSystemLogic.cs, запись только специальных нод с модулем SerializeItem
-		STATIC_ALL_NODES                    // статическое размещение в AppSystemLogic.cs, запись всех нод записанных в активном игровом мире
-	}
+	// public enum MODE_PL
+	// {
+	// 	DIRECT_WORLD_ITEMS,                 // размещение только в одном мире, запись только специальных нод с модулем SerializeItem
+	// 	DIRECT_WORLD_NODES,                 // размещение только в одном мире, запись всех нод записанных в игровом мире
+	// 	STATIC_ALL_ITEMS,                   // статическое размещение в AppSystemLogic.cs, запись только специальных нод с модулем SerializeItem
+	// 	STATIC_ALL_NODES                    // статическое размещение в AppSystemLogic.cs, запись всех нод записанных в активном игровом мире
+	// }
 
 	/// <summary>
 	/// Флаг первичного запуска, выбор режима чтения записи
@@ -70,43 +70,41 @@ public class SerializeHandler : Component
 		NONE, ERROR, SHDN_FILE, PATH_LIST, REGULAR, DEFAULT, STAGE
 	}
 
-	[ShowInEditor][Parameter(Tooltip = "Флаг размещения")]
-	private MODE_PL placeSerialMode = MODE_PL.STATIC_ALL_ITEMS;
+	//[ShowInEditor][Parameter(Tooltip = "Флаг размещения")]
+	//protected MODE_PL placeSerialMode = MODE_PL.STATIC_ALL_ITEMS;
 
 	[ShowInEditor][Parameter(Tooltip = "Флаг работы модуля сериализации")]
-	private MODE_RW readWriteMode = MODE_RW.WRITE_NEW_DATA;
+	protected MODE_RW readWriteMode = MODE_RW.WRITE_NEW_DATA;
 
 	[ShowInEditor][Parameter(Tooltip = "Корневая папка, в которую будет происходить сохранение")]
-	private ROOT folderRoot = ROOT.DATA;
+	protected ROOT folderRoot = ROOT.DATA;
 
 	[ShowInEditor][Parameter(Tooltip = "Путь к папке сохранений")]
-	private string saveStateFolder = "serialization";
+	protected string saveStateFolder = "serialization";
 
 	[ShowInEditor][Parameter(Tooltip = "Включение использвоания в имени записи времени и даты")]
-	private bool useTimeStamp = false;
+	protected bool useTimeStamp = false;
 
 	// -------------------------- блок внутренних полей класса ---------------------------------
 
-	private Regex shutdownSaveRegExp;                             // регулярка для формирования и поиска сейвов по выключению
-	private Regex defaultStateRegExp;                             // регулярка для формирования базового сейва
-	private Regex regularSaveRegExp;                              // общая регулярка сохранения по времени
-	private Regex pathListSaveRegExp;                             // регулярка для сохранения листа сейвов
-	private Regex stageStateRegExp;                               // регулярка для сохранения стейжа
-	private Regex fileExtMetaException;                           // регулярка исключения ".meta" (для файлов unigine)
+	protected Regex shutdownSaveRegExp;                             // регулярка для формирования и поиска сейвов по выключению
+	protected Regex defaultStateRegExp;                             // регулярка для формирования базового сейва
+	protected Regex regularSaveRegExp;                              // общая регулярка сохранения по времени
+	protected Regex pathListSaveRegExp;                             // регулярка для сохранения листа сейвов
+	protected Regex stageStateRegExp;                               // регулярка для сохранения стейжа
+	protected Regex fileExtMetaException;                           // регулярка исключения ".meta" (для файлов unigine)
 	
-	private string[] initFolderFiles;                             // массив под хранение путей к файлам в рабочей папке
+	protected string[] initFolderFiles;                             // массив под хранение путей к файлам в рабочей папке
 
-	private string worldName;                                     // название текущего игрового мира
-	private FileInfo fileInfo;                                    // заглушка для проверки наличия файла
-	private string filePath;                                      // путь для работы файлового потока
-	private Unigine.File fileSource = new Unigine.File();         // главный поток сохранения/загрузки
-	private STATUS fileStatus = STATUS.CLOSE;                     // статус потока сохранения/загрузки
-	private TYPE fileType = TYPE.NONE;                            // тип файла-потока сохранения/загрузки
-	private string fileMode = "";                                 // режим открытия файла-потока
+	protected string worldName;                                     // название текущего игрового мира
+	protected FileInfo fileInfo;                                    // заглушка для проверки наличия файла
+	protected string filePath;                                      // путь для работы файлового потока
+	protected Unigine.File fileSource = new Unigine.File();         // главный поток сохранения/загрузки
+	protected STATUS fileStatus = STATUS.CLOSE;                     // статус потока сохранения/загрузки
+	protected TYPE fileType = TYPE.NONE;                            // тип файла-потока сохранения/загрузки
+	protected string fileMode = "";                                 // режим открытия файла-потока
                         
-	private List<Node> worldRootNodes = new List<Node>();         // список всех корневых нод загруженного мира
-	private List<Node> worldSerialNodes = new List<Node>();       // список конкретных элементов содержащих SerializeItem
-	private List<Widget> worldGuiWidgets = new List<Widget>();    // список всех виджетов гуя загруженного мира
+	protected List<Node> worldRootNodes = new List<Node>();         // список всех корневых нод загруженного мира
 
 	/// <summary>
 	/// Структура хранящая в себе данные по названиям и путям к файлам сохраненных стадий для конкретного игрового мира
@@ -233,12 +231,20 @@ public class SerializeHandler : Component
 	private Dictionary<string, WorldSavePathData> saveData = new Dictionary<string, WorldSavePathData>();
 
 	
+	// ------------------------------------------- блок булевых проверок базового класса ------------------------------------------------
+
+	/// <summary>
+	/// Возвращает флаг состояния потока, что он открыт или закрыт
+	/// </summary>
+	/// <returns></returns>
+	protected bool FileSourceIsOpen() { return fileStatus == STATUS.OPEN ? true : false;}
+
 	// ------------------------------------------- блок методов инициализации класса ----------------------------------------------------
 
 	/// <summary>
 	/// Инициализирует файл с информацией о раннее сохраненных при выключении данных
 	/// </summary>
-	private void InitShutDownData() 
+	protected void InitShutDownData() 
 	{
 		if (readWriteMode == MODE_RW.READ_SHDN_DATA)
 		{
@@ -258,7 +264,7 @@ public class SerializeHandler : Component
 	/// <summary>
 	/// Инициализирует названия файлов из указанной папки
 	/// </summary>
-	private void InitSaveFiles()
+	protected void InitSaveFiles()
 	{
 		Directory.CreateDirectory(GetSaveFolder());
 		initFolderFiles = Directory.GetFiles(GetSaveFolder());
@@ -267,7 +273,7 @@ public class SerializeHandler : Component
 	/// <summary>
 	/// Инициализирует запись в saveData по текущему игровому миру
 	/// </summary>
-	private void InitSaveData() 
+	protected void InitSaveData() 
 	{
 		// создаём запись в хеше по данному игровому миру
 		if (!saveData.TryGetValue(worldName, out WorldSavePathData worldData)) {
@@ -290,76 +296,25 @@ public class SerializeHandler : Component
 	/// <summary>
 	/// Сортировка всех листов с нодами, чтобы сохранения и загрузки выполнялись корректно
 	/// </summary>
-	private void SortAllNodeLists() 
+	protected virtual void SortAllNodeLists() 
 	{
 		Comparison<Unigine.Node> nodeCompararor = (lhs, rhs) => lhs.ID.CompareTo(rhs.ID);
-		Comparison<Unigine.Widget> widgetComparator = (lhs, rhs) => lhs.Order.CompareTo(rhs.Order);
-
-		worldRootNodes.Sort(nodeCompararor);
-		worldSerialNodes.Sort(nodeCompararor);
-		worldGuiWidgets.Sort(widgetComparator);
-	}
-
-	/// <summary>
-	/// Проходит по всему списку виджетов и записывает в список
-	/// </summary>
-	private void InitGUIWidgets() 
-	{
-		if (worldGuiWidgets.Count != 0) worldGuiWidgets.Clear();
-
-		Gui gui = Gui.GetCurrent();
-		for (int i = 0; i != gui.NumChildren; i++) 
-		{
-			worldGuiWidgets.Add(gui.GetChild(i));
-		}
-	}
-
-	/// <summary>
-	/// Проходит по всему списку нод игрового мира и записывает в список те, которые имеют модуль SerializeItem
-	/// </summary>
-	private void InitSerialNodes() 
-	{
-		if (worldSerialNodes.Count != 0) worldSerialNodes.Clear();
-
-		List<Node> worldNodes = new List<Node>();
-		World.GetNodes(worldNodes);
-
-		for (int i = 0; i != worldNodes.Count; ++i) 
-		{
-			if (worldNodes[i].GetComponent<SerializeItem>() != null) worldSerialNodes.Add(worldNodes[i]);
-		}
+		worldRootNodes.Sort(nodeCompararor);;
 	}
 
 	/// <summary> 
 	/// Получает от игрового мира информацию по всем корневым нодам
 	/// </summary>
-	private void InitWorldData() 
+	protected virtual void InitWorldData() 
 	{
-		
-		switch (placeSerialMode)
-		{
-			case MODE_PL.STATIC_ALL_ITEMS:
-			case MODE_PL.DIRECT_WORLD_ITEMS:
-			
-				InitSerialNodes(); 
-				break;
-			
-
-			case MODE_PL.STATIC_ALL_NODES:
-			case MODE_PL.DIRECT_WORLD_NODES:
-
-				World.GetRootNodes(worldRootNodes);
-				break;
-		}
-
-		InitGUIWidgets();
+		World.GetRootNodes(worldRootNodes);
 		SortAllNodeLists();
 	}
 
 	/// <summary>
 	/// Получает название текущего игрового мира
 	/// </summary>
-	private void InitWorldName() 
+	protected void InitWorldName() 
 	{
 		worldName = System.IO.Path.GetFileNameWithoutExtension(World.Path);
 	}
@@ -367,7 +322,7 @@ public class SerializeHandler : Component
 	/// <summary>
 	/// Инициализирует регулярные выражения
 	/// </summary>
-	private void InitRegExps() 
+	protected void InitRegExps() 
 	{
 		shutdownSaveRegExp = new Regex((useTimeStamp ? DATA_STAMP : "") + SHUTDOWN_SUFFIX);
 		defaultStateRegExp = new Regex((useTimeStamp ? DATA_STAMP : "")  + DEFAULT_SUFFIX);
@@ -377,24 +332,18 @@ public class SerializeHandler : Component
 		fileExtMetaException = new Regex(META_STAMP);
 	}
 
- 
 	/// <summary>
 	/// Выполняет сериализацию базового сотояния всех нод игрового мира
 	/// </summary>
-	private void SaveDefaultWorldStage() 
+	protected void SaveDefaultWorldStage() 
 	{
 		UnsafeSaveStage("start_stage", true);
 	}
 
 	/// <summary>
-	/// Метод внешней инициализации. Используется для внешнего вызова, если сериализатор находится в AppSystemLogic.cs
+	/// Метод общей инициализации класса
 	/// </summary>
-	public SerializeHandler ExternanInit()
-	{
-		Init(); return this;
-	}
-
-	private void Init()
+	protected void SerializerInit()
 	{
 		InitWorldName();
 		InitWorldData();
@@ -409,6 +358,19 @@ public class SerializeHandler : Component
 				InitShutDownData();
 				break;
 		}
+	} 
+
+	/// <summary>
+	/// Метод внешней инициализации. Используется для внешнего вызова, если сериализатор находится в AppSystemLogic.cs
+	/// </summary>
+	public virtual SerializeHandler ExternanInit()
+	{
+		SerializerInit(); return this;
+	}
+
+	private void Init()
+	{
+		SerializerInit();
 	}
 
 	/// <summary>
@@ -880,35 +842,15 @@ public class SerializeHandler : Component
 	/// <summary>
 	/// Вызов сериализации игровых данных в заранее открытый файл
 	/// </summary>
-	private void SerializeWorldData()
+	protected virtual void SerializeWorldData()
 	{
 		if (fileStatus == STATUS.OPEN) 
 		{
-			switch (placeSerialMode)
-			{
-				case MODE_PL.STATIC_ALL_ITEMS:
-				case MODE_PL.DIRECT_WORLD_ITEMS:
-				
-					foreach (Node node in worldSerialNodes)
-					{
-						node.GetComponent<SerializeItem>().SerializeNodeData(fileSource);
-					}
-
-					break;
-				
-
-				case MODE_PL.STATIC_ALL_NODES:
-				case MODE_PL.DIRECT_WORLD_NODES:
-
-					foreach (Node node in worldRootNodes) 
-					{	
-						SerializeRootNode(node);
-						if (node.NumChildren > 0) SerializeNodeData(node);
-					}
-
-					break;
-			}
-			
+			foreach (Node node in worldRootNodes) 
+			{	
+				SerializeRootNode(node);
+				if (node.NumChildren > 0) SerializeNodeData(node);
+			}		
 		}
 		else 
 		{
@@ -1035,34 +977,14 @@ public class SerializeHandler : Component
 	/// <summary>
 	/// Загружает параметры из cериализованных данных
 	/// </summary>
-	private void LoadWorldData()
+	protected virtual void LoadWorldData()
 	{
 		if (fileStatus == STATUS.OPEN) 
 		{
-
-			switch (placeSerialMode)
-			{
-				case MODE_PL.STATIC_ALL_ITEMS:
-				case MODE_PL.DIRECT_WORLD_ITEMS:
-				
-					foreach (Node node in worldSerialNodes)
-					{
-						node.GetComponent<SerializeItem>().RestoreData(fileSource);
-					}
-
-					break;
-				
-
-				case MODE_PL.STATIC_ALL_NODES:
-				case MODE_PL.DIRECT_WORLD_NODES:
-
-					foreach (Node node in worldRootNodes) 
-					{	
-						LoadRootNode(node);
-						if (node.NumChildren > 0) LoadNodeData(node);
-					}
-
-					break;
+			foreach (Node node in worldRootNodes) 
+			{	
+				LoadRootNode(node);
+				if (node.NumChildren > 0) LoadNodeData(node);
 			}
 		}
 	}

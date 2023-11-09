@@ -7,12 +7,17 @@ using Unigine;
 [Component(PropertyGuid = "673fd8f31ad8c9b6ac95b59d62baba58d8c179d7")]
 public class SerializeUnit : Component
 {
-	SerializeHandler handler;
+	//SerializeHandler handler;
+	StaticItemSerializer serializer;
 
 	private void Init()
 	{
-		handler = UnigineApp.AppSystemLogic
-			.GetSerializer()
+		// handler = UnigineApp.AppSystemLogic
+		// 	.GetSerializer()
+		// 	.ExternanInit();
+
+		serializer = UnigineApp.AppSystemLogic
+			.GetStaticSerializer()
 			.ExternanInit();
 	}
 
@@ -28,7 +33,7 @@ public class SerializeUnit : Component
 	/// <param name="rewrite"></param>
 	public void UnsafeSaveStage(string stage, bool rewrite = false)
 	{
-		if (handler != null) handler.UnsafeSaveStage(stage, rewrite);
+		if (serializer != null) serializer.UnsafeSaveStage(stage, rewrite);
 	}
 
 	/// <summary>
@@ -38,9 +43,9 @@ public class SerializeUnit : Component
 	/// <param name="rewrite"></param>
 	public void TrySaveStage(string stage, bool rewrite = false) 
 	{
-		if (handler != null) 
+		if (serializer != null) 
 		{
-			SerializeHandler.SERIAL_RESULT result = handler.TrySaveStage(stage, rewrite);
+			SerializeHandler.SERIAL_RESULT result = serializer.TrySaveStage(stage, rewrite);
 
 			if (result != SerializeHandler.SERIAL_RESULT.SAVE_STAGE_COMPLETE) {
 				Log.Message("Stage {0} serialization is fail\n", stage);
@@ -65,7 +70,7 @@ public class SerializeUnit : Component
 	/// <param name="stage"></param>
 	public void UnsafeLoadStage(string stage)
 	{
-		if (handler != null) handler.UnsafeLoadStage(stage);
+		if (serializer != null) serializer.UnsafeLoadStage(stage);
 	}
 
 	/// <summary>
@@ -74,9 +79,9 @@ public class SerializeUnit : Component
 	/// <param name="stage"></param>
 	public void TryLoadStage(string stage)
 	{
-		if (handler != null) 
+		if (serializer != null) 
 		{
-			SerializeHandler.SERIAL_RESULT result = handler.TryLoadStage(stage);
+			SerializeHandler.SERIAL_RESULT result = serializer.TryLoadStage(stage);
 
 			if (result != SerializeHandler.SERIAL_RESULT.LOAD_STAGE_COMPLETE) {
 				Log.Message("Stage {0} deserialization is fail\n", stage);

@@ -56,7 +56,6 @@ public class SerializeNodeObject : SerializeItem
 		}
 	}
 
-
 	public override void RestoreData(Unigine.File fileSource) 
 	{
 		try 

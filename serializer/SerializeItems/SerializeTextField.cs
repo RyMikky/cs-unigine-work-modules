@@ -79,7 +79,6 @@ public class SerializeTextField : SerializeItem
 		}
 	}
 
-
 	public override void RestoreData(Unigine.File fileSource) 
 	{
 		try 
