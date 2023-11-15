@@ -7,7 +7,7 @@ using Unigine;
 /// Подкласс для сериализации текстовых полей в игровом GUI
 /// </summary>
 [Component(PropertyGuid = "b0589c10bcad402f1d64efc25c086c39d58c2844")]
-public class SerializeTextField : SerializeItem
+public class SerializeTextField : SerializeBaseItem
 {
 	public SerializeTextField() {
 		this._type = SERIAL_OBJECT_TYPE.GUI_TEXT_FIELD;

@@ -4,7 +4,7 @@ using System.Collections.Generic;
 using Unigine;
 
 [Component(PropertyGuid = "5bd67492bb070ac997b79594b1ce83e36da317e6")]
-public class SerializeNodeObject : SerializeItem
+public class SerializeNodeObject : SerializeBaseItem
 {
 
 	public SerializeNodeObject() {

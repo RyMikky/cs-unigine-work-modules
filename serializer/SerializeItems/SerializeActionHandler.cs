@@ -3,52 +3,50 @@ using System.Collections;
 using System.Collections.Generic;
 using Unigine;
 
-[Component(PropertyGuid = "468f6cb694cdfc9d88e05558e76c58d7d554204a")]
-public class SerializeImageWidget : SerializeBaseItem
+[Component(PropertyGuid = "349a6c5d048882188f8b1e97f16eab0a4b2d9ee1")]
+public class SerializeActionHandler : SerializeBaseItem
 {
 
-	public SerializeImageWidget() {
-		this._type = SERIAL_OBJECT_TYPE.GUI_IMAGE_WIDGET;
+	public SerializeActionHandler() {
+		this._type = SERIAL_OBJECT_TYPE.ACTION_HANDLER;
 	}
 
-	private Image _script = null;
-
+	private ActionManager _manager = null;
 
 	/// <summary>
-	/// Инициализирует скрипт управляющий размещением текста в боксе
+	/// Инициализирует скрипт управляющий менеджером действий
 	/// </summary>
-	private void InitImageScript() 
+	private void InitManagerScript() 
 	{
 		if (IsNode()) 
 		{
-			_script = node.GetComponent<Image>();
+			_manager = node.GetComponent<ActionManager>();
 		}
 		else 
 		{
-			throw new System.Exception("InitImageScript Error");
+			throw new System.Exception("InitManagerScript Error");
 		}
 	}
 
 	private void Init()
 	{
-		InitImageScript();
+		InitManagerScript();		
 	}
+	
 	
 	public override void SerializeNodeData(Unigine.File fileSource)
 	{
 		if (IsNode()) 
 		{
 			WriteTypeLabel(fileSource, DATA_BEGIN_SUFFIX);
-			if (_script != null) 
+			if (_manager != null) 
 			{
 				WriteBodyFlag(fileSource, true);                                          // флаг наличия скрипта
 
 				fileSource.WriteInt(node.ID);                                             // записываем ID текущей ноды
 				fileSource.WriteString(node.Name);                                        // записываем название текущей ноды
 
-				WriteBodyFlag(fileSource, _script.isActive);                              // флаг активного спрайта скрипта
-				WidgetSprite sprite = _script.GetCurrentSprite();                         // берем текущий спрайт
-				fileSource.WriteString(sprite.Texture);                                   // записываем путь к спрайту
+				fileSource.WriteInt(_manager.GetActionIndex());                           // записываем индекс текущей операции
 
 			}
 			else 
@@ -65,7 +63,7 @@ public class SerializeImageWidget : SerializeBaseItem
 		try 
 		{
 			// считывание объекта начнется в том случае если корректно считывается хеддер и флаг тела объекта
-			if (IsNode() && _script != null && ReadTypeLabel(fileSource, DATA_BEGIN_SUFFIX) && fileSource.ReadBool()) 
+			if (IsNode() && _manager != null && ReadTypeLabel(fileSource, DATA_BEGIN_SUFFIX) && fileSource.ReadBool()) 
 			{
 				int nodeId = fileSource.ReadInt();                                    // получаем ID текущей ноды         
 				string nodeName = fileSource.ReadString();                            // получаем название текущей ноды   
@@ -73,20 +71,9 @@ public class SerializeImageWidget : SerializeBaseItem
 				if (node.ID == nodeId) 
 				{
 					
-					bool active = fileSource.ReadBool();
-					WidgetSprite sprite = _script.GetCurrentSprite();
-					sprite.Texture = fileSource.ReadString();
-					_script.SetActive(active);
-
-					if(active)
-					{
-						_script.SetEnable();
-					}
-					else 
-					{
-						_script.SetDisable();
-					}
-								
+					int currentAction = fileSource.ReadInt();
+					_manager.SetAction(currentAction);
+		
 					if (!ReadTypeLabel(fileSource, DATA_END_SUFFIX)) throw new System.Exception("Node END_label reading is corrupt");
 				}
 				else 
