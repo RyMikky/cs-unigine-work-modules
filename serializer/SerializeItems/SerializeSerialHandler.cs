@@ -5,17 +5,20 @@ using System.ComponentModel;
 using System.Net.NetworkInformation;
 using Unigine;
 
+/// <summary>
+/// Сериализирует настройки и состояние обработчика сериализации. Вызывается один раз только в момент сохранения/запуска базовой настройки
+/// </summary>
 [Component(PropertyGuid = "9f44304634f74aedc5fd2f68cc55cba7af3dd4da")]
 public class SerializeSerialHandler : SerializeBaseItem
 {
 
-	static readonly string __STAGES_LIST_NODE_NAME__ = "HandlerStagesList";
+	static readonly string __STAGES_LIST_NODE_NAME__ = "StagesListCollection";
 
 	public SerializeSerialHandler() {
-		this._type = SERIAL_OBJECT_TYPE.SERIAL_HANDLER;
+		this.type = SERIAL_OBJECT_TYPE.SERIAL_HANDLER;
 	}
 
-	private SerializeHandler _handler = null;
+	private SerializeHandler handler = null;
 
 	/// <summary>
 	/// Инициализирует скрипт обработчика сериализации
@@ -24,7 +27,7 @@ public class SerializeSerialHandler : SerializeBaseItem
 	{
 		if (IsNode()) 
 		{
-			_handler = node.GetComponent<SerializeHandler>();
+			handler = node.GetComponent<SerializeHandler>();
 		}
 		else 
 		{
@@ -39,35 +42,35 @@ public class SerializeSerialHandler : SerializeBaseItem
 	
 	public override void SerializeNodeData(Unigine.File fileSource)
 	{
-		if (_handler == null) InitHandlerScript();
+		if (handler == null) InitHandlerScript();
 
 		if (IsNode()) 
 		{
 			WriteTypeLabel(fileSource, DATA_BEGIN_SUFFIX);
-			if (_handler != null) 
+			if (handler != null) 
 			{
 				WriteBodyFlag(fileSource, true);                                          // флаг наличия скрипта
 
 				fileSource.WriteInt(node.ID);                                             // записываем ID текущей ноды
 				fileSource.WriteString(node.Name);                                        // записываем название текущей ноды
 
-				_handler.GetGUIStageListBoxSettings().SerializeNodeData(fileSource);      // записываем настройки листа стадий
-				_handler.GetGUINextStepButtonSettings().SerializeNodeData(fileSource);    // записываем настройки кнопки вперед
-				_handler.GetGUIPrevStepButtonSettings().SerializeNodeData(fileSource);    // записываем настройки кнопки назад
+				handler.GetGUIStageListBoxSettings().SerializeNodeData(fileSource);      // записываем настройки листа стадий
+				handler.GetGUINextStepButtonSettings().SerializeNodeData(fileSource);    // записываем настройки кнопки вперед
+				handler.GetGUIPrevStepButtonSettings().SerializeNodeData(fileSource);    // записываем настройки кнопки назад
 
-				fileSource.WriteInt(_handler.GetDefStartIndex());                         // записываем индекс базового шага
-				fileSource.WriteInt(_handler.GetCurStageIndex());                         // записываем индекс текущей стадии
-				fileSource.WriteInt(_handler.GetCurStepIndex());                          // записываем индекс текущего шага
+				fileSource.WriteInt(handler.GetDefStartIndex());                         // записываем индекс базового шага
+				fileSource.WriteInt(handler.GetCurStageIndex());                         // записываем индекс текущей стадии
+				fileSource.WriteInt(handler.GetCurStepIndex());                          // записываем индекс текущего шага
 
 				// сериализация листа стадий производится только тогда когда она загружена впервые
-				if (_handler.GetStageListStatus() == SerializeHandler.LIST_STATUS.LOADED)
+				if (handler.GetStageListStatus() == SerializeHandler.LIST_STATUS.LOADED)
 				{
-					int numStages = _handler.GetNumStages();                              // получаем количество стадий
+					int numStages = handler.GetNumStages();                              // получаем количество стадий
 					fileSource.WriteInt(numStages);                                       // записываем количество стадий
 
 					for (int i = 0; i != numStages; ++i) 
 					{
-						_handler.GetStageByIndex(i).SerializeDescription(fileSource);     // записывает данные по указанной стадии
+						handler.GetStageByIndex(i).SerializeDescription(fileSource);     // записывает данные по указанной стадии
 					}
 				}
 			}
@@ -84,25 +87,25 @@ public class SerializeSerialHandler : SerializeBaseItem
 	{
 		try 
 		{
-			if (_handler == null) InitHandlerScript();
+			if (handler == null) InitHandlerScript();
 			// считывание объекта начнется в том случае если корректно считывается хеддер и флаг тела объекта
-			if (IsNode() && _handler != null && ReadTypeLabel(fileSource, DATA_BEGIN_SUFFIX) && fileSource.ReadBool()) 
+			if (IsNode() && handler != null && ReadTypeLabel(fileSource, DATA_BEGIN_SUFFIX) && fileSource.ReadBool()) 
 			{
 				int nodeId = fileSource.ReadInt();                                    // получаем ID текущей ноды         
 				string nodeName = fileSource.ReadString();                            // получаем название текущей ноды   
 			
 				if (node.ID == nodeId) 
 				{
-					_handler.GetGUIStageListBoxSettings().RestoreData(fileSource);      // восстанавливаем настройки листа стадий
-					_handler.GetGUINextStepButtonSettings().RestoreData(fileSource);    // восстанавливаем настройки кнопки вперед
-					_handler.GetGUIPrevStepButtonSettings().RestoreData(fileSource);    // восстанавливаем настройки кнопки назад
+					handler.GetGUIStageListBoxSettings().RestoreData(fileSource);      // восстанавливаем настройки листа стадий
+					handler.GetGUINextStepButtonSettings().RestoreData(fileSource);    // восстанавливаем настройки кнопки вперед
+					handler.GetGUIPrevStepButtonSettings().RestoreData(fileSource);    // восстанавливаем настройки кнопки назад
 
 					int income_defStageIndex = fileSource.ReadInt();                    // получаем индекс базовой стадии
 					int income_curStageIndex = fileSource.ReadInt();					// получаем индекс текущей стадии
 					int income_curStepIndex = fileSource.ReadInt();                     // получаем индекс текущего шага
 
 					// сериализация листа стадий производится только тогда когда она вообще не загружена
-					if (_handler.GetStageListStatus() == SerializeHandler.LIST_STATUS.EMPTY)
+					if (handler.GetStageListStatus() == SerializeHandler.LIST_STATUS.EMPTY)
 					{
 						RestoreHandlerStagesList(fileSource, fileSource.ReadInt());         // восстанавливаем список стадий
 					}
@@ -199,7 +202,7 @@ public class SerializeSerialHandler : SerializeBaseItem
 			}
 
 			// Загружаем в обработчик новый список стадий
-			_handler.SetNewWorldStagesArray(stageList);
+			handler.SetNewWorldStagesArray(stageList);
 		}
 	}
 }

@@ -8,10 +8,10 @@ public class SerializeImageWidget : SerializeBaseItem
 {
 
 	public SerializeImageWidget() {
-		this._type = SERIAL_OBJECT_TYPE.GUI_IMAGE_WIDGET;
+		this.type = SERIAL_OBJECT_TYPE.GUI_IMAGE_WIDGET;
 	}
 
-	private Image _script = null;
+	private Image script = null;
 
 
 	/// <summary>
@@ -21,7 +21,7 @@ public class SerializeImageWidget : SerializeBaseItem
 	{
 		if (IsNode()) 
 		{
-			_script = node.GetComponent<Image>();
+			script = node.GetComponent<Image>();
 		}
 		else 
 		{
@@ -39,15 +39,15 @@ public class SerializeImageWidget : SerializeBaseItem
 		if (IsNode()) 
 		{
 			WriteTypeLabel(fileSource, DATA_BEGIN_SUFFIX);
-			if (_script != null) 
+			if (script != null) 
 			{
 				WriteBodyFlag(fileSource, true);                                          // флаг наличия скрипта
 
 				fileSource.WriteInt(node.ID);                                             // записываем ID текущей ноды
 				fileSource.WriteString(node.Name);                                        // записываем название текущей ноды
 
-				WriteBodyFlag(fileSource, _script.isActive);                              // флаг активного спрайта скрипта
-				WidgetSprite sprite = _script.GetCurrentSprite();                         // берем текущий спрайт
+				WriteBodyFlag(fileSource, script.isActive);                              // флаг активного спрайта скрипта
+				WidgetSprite sprite = script.GetCurrentSprite();                         // берем текущий спрайт
 				fileSource.WriteString(sprite.Texture);                                   // записываем путь к спрайту
 
 			}
@@ -65,7 +65,7 @@ public class SerializeImageWidget : SerializeBaseItem
 		try 
 		{
 			// считывание объекта начнется в том случае если корректно считывается хеддер и флаг тела объекта
-			if (IsNode() && _script != null && ReadTypeLabel(fileSource, DATA_BEGIN_SUFFIX) && fileSource.ReadBool()) 
+			if (IsNode() && script != null && ReadTypeLabel(fileSource, DATA_BEGIN_SUFFIX) && fileSource.ReadBool()) 
 			{
 				int nodeId = fileSource.ReadInt();                                    // получаем ID текущей ноды         
 				string nodeName = fileSource.ReadString();                            // получаем название текущей ноды   
@@ -74,17 +74,17 @@ public class SerializeImageWidget : SerializeBaseItem
 				{
 					
 					bool active = fileSource.ReadBool();
-					WidgetSprite sprite = _script.GetCurrentSprite();
+					WidgetSprite sprite = script.GetCurrentSprite();
 					sprite.Texture = fileSource.ReadString();
-					_script.SetActive(active);
+					script.SetActive(active);
 
 					if(active)
 					{
-						_script.SetEnable();
+						script.SetEnable();
 					}
 					else 
 					{
-						_script.SetDisable();
+						script.SetDisable();
 					}
 								
 					if (!ReadTypeLabel(fileSource, DATA_END_SUFFIX)) throw new System.Exception("Node END_label reading is corrupt");

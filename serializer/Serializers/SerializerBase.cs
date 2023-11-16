@@ -37,7 +37,7 @@ public class SerializerBase : Component
 	/// <summary>
 	/// Флаг первичного запуска, выбор режима чтения записи
 	/// </summary>
-	public enum MODE_RW 
+	public enum MODE 
 	{
 		WRITE_NEW_DATA,                     // режим запуска "с чистого листа"
 		READ_SHDN_DATA                      // запуск с чтением информации с прошлого выключения
@@ -57,8 +57,8 @@ public class SerializerBase : Component
 		NONE, ERROR, SHDN_FILE, PATH_LIST, REGULAR, DEFAULT, STAGE
 	}
 
-	[ShowInEditor][Parameter(Tooltip = "Флаг работы модуля сериализации")]
-	protected MODE_RW readWriteMode = MODE_RW.WRITE_NEW_DATA;
+	[ShowInEditor][Parameter(Tooltip = "Базовый режим работы модуля сериализации")]
+	protected MODE mode = MODE.WRITE_NEW_DATA;
 
 	[ShowInEditor][Parameter(Tooltip = "Корневая папка, в которую будет происходить сохранение")]
 	protected ROOT folderRoot = ROOT.DATA;
@@ -68,6 +68,12 @@ public class SerializerBase : Component
 
 	[ShowInEditor][Parameter(Tooltip = "Включение использвоания в имени записи времени и даты")]
 	protected bool useTimeStamp = false;
+
+	[ShowInEditor][Parameter(Tooltip = "Включение сохранения при первичной загрузке")]
+	protected bool saveDefaultDataState = false;
+
+	[ShowInEditor][Parameter(Tooltip = "Включение сохранения при завершении работы программы")]
+	protected bool saveDataOnShutdown = false;
 
 	// -------------------------- блок внутренних полей класса ---------------------------------
 
@@ -107,7 +113,7 @@ public class SerializerBase : Component
 	/// </summary>
 	protected void InitShutDownData() 
 	{
-		if (readWriteMode == MODE_RW.READ_SHDN_DATA)
+		if (mode == MODE.READ_SHDN_DATA)
 		{
 			// в папке будет находится только один полноценный файл состояния после предыдущего выключения
 			foreach (string file in initFolderFiles)
@@ -204,14 +210,6 @@ public class SerializerBase : Component
 	}
 
 	/// <summary>
-	/// Выполняет сериализацию базового сотояния всех нод игрового мира
-	/// </summary>
-	protected void SaveDefaultWorldStage() 
-	{
-		UnsafeSaveStage("start_stage", true);
-	}
-
-	/// <summary>
 	/// Метод общей инициализации класса
 	/// </summary>
 	protected void SerializerInit()
@@ -222,16 +220,18 @@ public class SerializerBase : Component
 		InitSaveFiles();
 		InitSaveData();
 
-		switch (readWriteMode) 
+		switch (mode) 
 		{
-			case MODE_RW.READ_SHDN_DATA:
+			case MODE.READ_SHDN_DATA:
 				InitShutDownData();
 				break;
 		}
+
+		if (saveDefaultDataState) SerializeDefaultState();
 	} 
 
 	/// <summary>
-	/// Метод внешней инициализации. Используется для внешнего вызова, если сериализатор находится в AppSystemLogic.cs
+	/// Метод внешней инициализации. Используется для внешнего вызова, если сериализатор находится, например, в AppSystemLogic.cs
 	/// </summary>
 	public virtual SerializerBase ExternanInit()
 	{
@@ -242,6 +242,11 @@ public class SerializerBase : Component
 	{
 		SerializerInit();
 	}
+
+	private void Shutdown()
+    {
+		if (saveDataOnShutdown) SerilizeOnShutDown();
+    }
 
 	/// <summary>
 	/// Проверяем доступность файла по указанному пути
@@ -273,9 +278,6 @@ public class SerializerBase : Component
 	{
 		return saveData.TryGetValue(worldName, out SWorldDataStruct data) && data.CheckDataByPath(path);
 	}
-
-
-
 
 	// ------------------------------------------- блок внутренних общих прикладных геттеров --------------------------------------------
 
@@ -354,6 +356,12 @@ public class SerializerBase : Component
 
 	// ------------------------------------------- блок методов для работы с файлами ----------------------------------------------------
 
+	/// <summary>
+	/// Вовзаращает путь к файлу сохранения по переданному типу сохранения и названию стадии
+	/// </summary>
+	/// <param name="type"></param>
+	/// <param name="stage"></param>
+	/// <returns></returns>
 	private string GetNewFilePath(TYPE type, string stage = "")
 	{
 		switch (type)
@@ -459,9 +467,17 @@ public class SerializerBase : Component
 	}
 
 	/// <summary>
+	/// Выполняет сериализацию базового сотояния всех нод игрового мира
+	/// </summary>
+	protected void SerializeDefaultState() 
+	{
+		SerializeData(TYPE.DEFAULT);
+	}
+
+	/// <summary>
 	/// Удаляет ранее созданные файлы сохранения при выключении
 	/// </summary>
-	private void ClearShutDownSaves() 
+	protected void ClearShutDownSaves() 
 	{
 		InitSaveFiles();     // пердварительно по новой инициализируем имеющиеся в папке файлы
 
@@ -478,7 +494,7 @@ public class SerializerBase : Component
 	/// <summary>
 	/// Вызов сериализации в файл перед выключением игры
 	/// </summary>
-	public void SerilizeOnShutDown()
+	protected void SerilizeOnShutDown()
 	{
 		ClearShutDownSaves();                                       // удаляет файлы с суфиксом сохранений при выключении
 		SerializeData(TYPE.SHDN_FILE);                              // вызывает сериализацию в соответствующем режиме

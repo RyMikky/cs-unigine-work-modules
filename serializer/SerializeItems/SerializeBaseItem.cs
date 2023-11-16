@@ -18,21 +18,16 @@ public class SerializeBaseItem : Component
 		STAGE_DESCRIPTION,
 		SERIAL_HANDLER,
 		ACTION_HANDLER,
+		ANIMATION_HANDLER,
+		NODE_DISABLER,
 		GUI_TEXT_FIELD, 
 		GUI_IMAGE_WIDGET,
 		OBJECT_NODE, 
 		GUI_STEP_BUTTON_SETTINGS,
 		GUI_LIST_BOX_SETTINGS,
-
-		COMMON_OBJECT, 
-		CAMERA_OBJECT, 
-		ANIMATION, 
-		OBJECT_DUMMY, 
-		ACTION_BUTTON, 
-		GUI_BOX_LIST
 	}
 
-	protected SERIAL_OBJECT_TYPE _type = SERIAL_OBJECT_TYPE.NO_SERIAL_OBJECT;
+	protected SERIAL_OBJECT_TYPE type = SERIAL_OBJECT_TYPE.NO_SERIAL_OBJECT;
 
 	static readonly Dictionary<SERIAL_OBJECT_TYPE, string> SERIAL_OBJECT_TYPE_STRING = new Dictionary<SERIAL_OBJECT_TYPE, string>()
 	{
@@ -40,6 +35,8 @@ public class SerializeBaseItem : Component
 		{SERIAL_OBJECT_TYPE.STAGE_DESCRIPTION, "STAGE_DESCRIPTION"},
 		{SERIAL_OBJECT_TYPE.SERIAL_HANDLER, "SERIAL_HANDLER"},
 		{SERIAL_OBJECT_TYPE.ACTION_HANDLER, "ACTION_HANDLER"},
+		{SERIAL_OBJECT_TYPE.ANIMATION_HANDLER, "ANIMATION_HANDLER"},
+		{SERIAL_OBJECT_TYPE.NODE_DISABLER, "NODE_DISABLER"},
 		{SERIAL_OBJECT_TYPE.GUI_TEXT_FIELD, "GUI_TEXT_FIELD"},
 		{SERIAL_OBJECT_TYPE.GUI_IMAGE_WIDGET, "GUI_IMAGE_WIDGET"},
 		{SERIAL_OBJECT_TYPE.OBJECT_NODE, "OBJECT_NODE"},
@@ -54,7 +51,7 @@ public class SerializeBaseItem : Component
 	/// Возвращает тип текущего экземпляра класса
 	/// </summary>
 	/// <returns></returns>
-	public SERIAL_OBJECT_TYPE GetSerialItemType() { return _type; }
+	public SERIAL_OBJECT_TYPE GetSerialItemType() { return type; }
 
 	/// <summary>
 	/// Возвращает комбинированную строку содержащею название типа + переданный суффикс. Не должна выбрасывать исключение. Если выкинула - в проге нарушенны данные.
@@ -64,7 +61,7 @@ public class SerializeBaseItem : Component
 	/// <exception cref="System.Exception"></exception>
 	private string GetCombinedTitleLabel(string suffix)
 	{
-		if (SERIAL_OBJECT_TYPE_STRING.TryGetValue(_type, out string type_label)) 
+		if (SERIAL_OBJECT_TYPE_STRING.TryGetValue(type, out string type_label)) 
 		{
 			return type_label + suffix;
 		}

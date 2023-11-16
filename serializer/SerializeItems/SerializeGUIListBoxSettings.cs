@@ -7,7 +7,7 @@ using Unigine;
 public class SerializeGUIListBoxSettings : SerializeBaseItem
 {
 	public SerializeGUIListBoxSettings() {
-		this._type = SERIAL_OBJECT_TYPE.GUI_LIST_BOX_SETTINGS;
+		this.type = SERIAL_OBJECT_TYPE.GUI_LIST_BOX_SETTINGS;
 	}
 	public bool serializeble;
 	private bool IsLoad = false;               // флаг уже загруженных настроек

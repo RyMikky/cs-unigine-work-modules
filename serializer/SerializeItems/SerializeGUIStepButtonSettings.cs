@@ -7,7 +7,7 @@ using Unigine;
 public class SerializeGUIStepButtonSettings : SerializeBaseItem
 {
 	public SerializeGUIStepButtonSettings() {
-		this._type = SERIAL_OBJECT_TYPE.GUI_STEP_BUTTON_SETTINGS;
+		this.type = SERIAL_OBJECT_TYPE.GUI_STEP_BUTTON_SETTINGS;
 	}
 	public bool serializeble;
 	private bool IsLoad = false;               // флаг уже загруженных настроек

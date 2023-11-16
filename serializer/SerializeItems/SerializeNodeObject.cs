@@ -8,10 +8,10 @@ public class SerializeNodeObject : SerializeBaseItem
 {
 
 	public SerializeNodeObject() {
-		this._type = SERIAL_OBJECT_TYPE.OBJECT_NODE;
+		this.type = SERIAL_OBJECT_TYPE.OBJECT_NODE;
 	}
 
-	private Unigine.Object _nodeObject;
+	private Unigine.Object nodeObject;
 
 	/// <summary>
 	/// Инициализирует ноду как объект
@@ -19,7 +19,7 @@ public class SerializeNodeObject : SerializeBaseItem
 	private void InitNodeObject() 
 	{
 		if (IsObject()) {
-			_nodeObject = node as Unigine.Object;
+			nodeObject = node as Unigine.Object;
 		}
 		else {
 			throw new System.Exception("InitNodeObject Error");
@@ -45,10 +45,10 @@ public class SerializeNodeObject : SerializeBaseItem
 			fileSource.WriteVec3(node.WorldPosition);                                 // мировую позицию
 			fileSource.WriteVec3(node.WorldScale);                                    // мировой масштаб
 
-			fileSource.WriteInt(_nodeObject.NumSurfaces);                             // записываем количество поверхностей
+			fileSource.WriteInt(nodeObject.NumSurfaces);                             // записываем количество поверхностей
 			
-			for (int i = 0; i != _nodeObject.NumSurfaces; i++) {
-				Material mat = _nodeObject.GetMaterial(i);                       
+			for (int i = 0; i != nodeObject.NumSurfaces; i++) {
+				Material mat = nodeObject.GetMaterial(i);                       
 				fileSource.WriteVec4(mat.GetParameterFloat4("auxiliary_color"));      // сохраняем цвет засветки auxiliary
 			}
 
@@ -86,7 +86,7 @@ public class SerializeNodeObject : SerializeBaseItem
 
 					for (int i = 0; i != nodeNumSurfaces; ++i)
 					{
-						Material mat = _nodeObject.GetMaterial(i);
+						Material mat = nodeObject.GetMaterial(i);
 						mat.SetParameterFloat4("auxiliary_color", auxColors[i]);
 					}
 

@@ -10,10 +10,10 @@ using Unigine;
 public class SerializeTextField : SerializeBaseItem
 {
 	public SerializeTextField() {
-		this._type = SERIAL_OBJECT_TYPE.GUI_TEXT_FIELD;
+		this.type = SERIAL_OBJECT_TYPE.GUI_TEXT_FIELD;
 	}
 
-	private LabelInBox _script = null;
+	private LabelInBox script = null;
 
 	/// <summary>
 	/// Инициализирует скрипт управляющий размещением текста в боксе
@@ -22,7 +22,7 @@ public class SerializeTextField : SerializeBaseItem
 	{
 		if (IsNode()) 
 		{
-			_script = node.GetComponent<LabelInBox>();
+			script = node.GetComponent<LabelInBox>();
 		}
 		else 
 		{
@@ -40,14 +40,14 @@ public class SerializeTextField : SerializeBaseItem
 		if (IsNode()) 
 		{
 			WriteTypeLabel(fileSource, DATA_BEGIN_SUFFIX);
-			if (_script != null) 
+			if (script != null) 
 			{
 				WriteBodyFlag(fileSource, true);
 
 				fileSource.WriteInt(node.ID);                                             // записываем ID текущей ноды
 				fileSource.WriteString(node.Name);                                        // записываем название текущей ноды
 
-				WidgetScrollBox box = _script.GetScrollBoxWidget();
+				WidgetScrollBox box = script.GetScrollBoxWidget();
 
 				fileSource.WriteInt(box.Width);                                           // записываем длину поля
 				fileSource.WriteInt(box.Height);                                          // записываем ширину поля
@@ -60,7 +60,7 @@ public class SerializeTextField : SerializeBaseItem
 				fileSource.WriteInt(box.PositionX);                                       // положение по горизонтали
 				fileSource.WriteInt(box.PositionY);                                       // положение по вертикали
 					
-				WidgetLabel label = _script.GetTextWidget();
+				WidgetLabel label = script.GetTextWidget();
 
 				fileSource.WriteInt(label.FontWrap);                                      // индекс шрифта
 				fileSource.WriteInt(label.FontSize);                                      // размер шрифта
@@ -84,7 +84,7 @@ public class SerializeTextField : SerializeBaseItem
 		try 
 		{
 			// считывание объекта начнется в том случае если корректно считывается хеддер и флаг тела объекта
-			if (IsNode() && _script != null && ReadTypeLabel(fileSource, DATA_BEGIN_SUFFIX) && fileSource.ReadBool()) 
+			if (IsNode() && script != null && ReadTypeLabel(fileSource, DATA_BEGIN_SUFFIX) && fileSource.ReadBool()) 
 			{
 				int nodeId = fileSource.ReadInt();                                    // получаем ID текущей ноды         
 				string nodeName = fileSource.ReadString();                            // получаем название текущей ноды   
@@ -110,8 +110,8 @@ public class SerializeTextField : SerializeBaseItem
 					int labelPositionY = fileSource.ReadInt();                        // положение по вертикали
 					string labelText = fileSource.ReadString();                       // текстовое поле
 
-					WidgetScrollBox box = _script.GetScrollBoxWidget();
-					WidgetLabel label = _script.GetTextWidget();
+					WidgetScrollBox box = script.GetScrollBoxWidget();
+					WidgetLabel label = script.GetTextWidget();
 
 					if (box == null && label == null) throw new System.Exception("Widget box or label is null");
 					

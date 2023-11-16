@@ -41,11 +41,13 @@ public class SerializeHandler : Component, ISProvider
 	/// </summary>
 	public enum MODE 
 	{
-		DISABLE, REWRITE, READ_ONLY
+		DISABLE, READ_ONLY, REWRITE_AUTO, REWRITE_MANUAL, AUTO_REW_READ
 	}
 
 	[ShowInEditor][Parameter(Tooltip = "Флаг выбора режима работы обработчика сериализации")]
 	private MODE mode = MODE.DISABLE;
+	public void SetHandlerMode(MODE flag) { mode = flag; }
+	public MODE GetHandlerMode() { return mode; }
 
 	[ShowInEditor][Parameter(Tooltip = "Флаг использования суффикса-приписки к одиночной стадии без шагов")]
 	private bool useSigleStageStepSuffix = true;
@@ -92,6 +94,9 @@ public class SerializeHandler : Component, ISProvider
 	private List<StepInfo> mainStagesList = new List<StepInfo>();                              // список основных стадий, без учёта шагов
 	private Dictionary<int, StepInfo> totalStageSteps = new Dictionary<int, StepInfo>();       // общий список всех стадий и шагов по очереди
 
+	private List<ISDisabler> disabledElements = new List<ISDisabler>();                        // элементы отключаемые в режиме READ_ONLY
+	private bool disabledElementsFlag = true;                                                  // флаг состояния отключаемых элементов
+
 	/// <summary>
 	/// Статус состояния листа шагов и стадий, применяется для управления сохранениями и загрузкой листа
 	/// </summary>
@@ -114,9 +119,25 @@ public class SerializeHandler : Component, ISProvider
 	/// <param name="status"></param>
 	public void SetStageListStatus(LIST_STATUS status) { stageListStatus = status; } 
 
+	/// <summary>
+	/// Метод удаляет всё данные в листах и словарях по стадиям и шагам
+	/// </summary>
+	private void ClearAllStagesToStepsListData()
+	{
+		HANDLER_STEPS_COUNT = 0;
+		mainStagesList.Clear();
+		totalStageSteps.Clear();
+		stageListStatus = LIST_STATUS.EMPTY;
+	}
+
 	private WidgetComboBox stageListBox = null;                                                // заготовка под GUI лист стадий
 	private WidgetButton prevStepButton = null;                                                // заготовка под кнопку перехода на предыдущий шаг
 	private WidgetButton nextStepButton = null;                                                // заготовка под кнопку перехода на следующий шаг
+
+	private IntPtr listBoxCallbackPtr;                                                         // заготовка под указатель калбека листа стадий
+	private IntPtr prevStepCallbackPtr;                                                        // заготовка под указатель калбека кнопки назад
+	private IntPtr nextStepCallbackPtr;                                                        // заготовка под указатель калбека кнопки вперед
+
 
 	[ShowInEditor][Parameter(Tooltip = "Список стадий игрового мира")]
 	SerializeStageDesricpion[] worldStages;
@@ -440,15 +461,17 @@ public class SerializeHandler : Component, ISProvider
 		switch (mode) 
 		{
 			case MODE.READ_ONLY:
-				stageListBox.AddCallback(Gui.CALLBACK_INDEX.CHANGED, () => OperationProvider(OP_FLAG.SET_STAGE_TO_READ));
-				nextStepButton.AddCallback(Gui.CALLBACK_INDEX.CLICKED, () => OperationProvider(OP_FLAG.SET_NEXT_STEP_TO_READ));
-				prevStepButton.AddCallback(Gui.CALLBACK_INDEX.CLICKED, () => OperationProvider(OP_FLAG.SET_PREV_STEP_TO_READ));
+				listBoxCallbackPtr = stageListBox.AddCallback(Gui.CALLBACK_INDEX.CHANGED, () => OperationProvider(OP_FLAG.SET_STAGE_TO_READ));
+				nextStepCallbackPtr = nextStepButton.AddCallback(Gui.CALLBACK_INDEX.CLICKED, () => OperationProvider(OP_FLAG.SET_NEXT_STEP_TO_READ));
+				prevStepCallbackPtr = prevStepButton.AddCallback(Gui.CALLBACK_INDEX.CLICKED, () => OperationProvider(OP_FLAG.SET_PREV_STEP_TO_READ));
 				break;
 
-			case MODE.REWRITE:
-				stageListBox.AddCallback(Gui.CALLBACK_INDEX.CHANGED, () => OperationProvider(OP_FLAG.SET_STAGE_TO_WRITE));
-				nextStepButton.AddCallback(Gui.CALLBACK_INDEX.CLICKED, () => OperationProvider(OP_FLAG.SET_NEXT_STEP_TO_WRITE));
-				prevStepButton.AddCallback(Gui.CALLBACK_INDEX.CLICKED, () => OperationProvider(OP_FLAG.SET_PREV_STEP_TO_WRITE));
+			case MODE.REWRITE_AUTO:
+			case MODE.REWRITE_MANUAL:
+			case MODE.AUTO_REW_READ:
+				listBoxCallbackPtr = stageListBox.AddCallback(Gui.CALLBACK_INDEX.CHANGED, () => OperationProvider(OP_FLAG.SET_STAGE_TO_WRITE));
+				nextStepCallbackPtr = nextStepButton.AddCallback(Gui.CALLBACK_INDEX.CLICKED, () => OperationProvider(OP_FLAG.SET_NEXT_STEP_TO_WRITE));
+				prevStepCallbackPtr = prevStepButton.AddCallback(Gui.CALLBACK_INDEX.CLICKED, () => OperationProvider(OP_FLAG.SET_PREV_STEP_TO_WRITE));
 				break;
 		}
 	}
@@ -538,7 +561,9 @@ public class SerializeHandler : Component, ISProvider
 				InitHandlerStagesList();                         // загружаем стадии
 				break;
 
-			case MODE.REWRITE:   
+			case MODE.REWRITE_AUTO:
+			case MODE.REWRITE_MANUAL:
+			case MODE.AUTO_REW_READ:    
 				/*
 					использование режима предполагает, что все требуемые для работы данные, а именно:
 					настройки размещения элементов GUI (список, кнопки), описания стадий с подшагами;
@@ -644,6 +669,51 @@ public class SerializeHandler : Component, ISProvider
 	}
 
 	/// <summary>
+	/// Активирует отключение указанных нод, чтобы они не мешали работе
+	/// </summary>
+	private void InitDisabledElements()
+	{
+		List<Node> worldNodes = new List<Node>();
+		World.GetNodes(worldNodes);
+
+		for (int i = 0; i != worldNodes.Count; ++i) 
+		{
+			ISDisabler script = worldNodes[i].GetComponent<ISDisabler>();
+			if (script != null) disabledElements.Add(script);
+		}
+
+		UpdateDeisabledElements();
+	}
+
+	/// <summary>
+	/// Запускает процесс автоматической перезаписи сохранений
+	/// </summary>
+	private void InitAutoWriteProcess()
+	{
+		if (mode == MODE.REWRITE_AUTO || mode == MODE.AUTO_REW_READ)
+		{
+			ActionManager manager = FindComponentInWorld<ActionManager>();
+			if (manager == null) throw new System.Exception("World has not Node whit ActionManager.cs");
+
+			// специально делаем включая размер, чтобы счётчик вернулся к первому элементу через NextStep
+			for (int i = 0; i != manager.GetActionsCount(); ++i)
+			{
+				manager.NextAction();
+				OperationProvider(OP_FLAG.SET_NEXT_STEP_TO_WRITE);
+			}
+
+			if (mode == MODE.AUTO_REW_READ)
+			{
+				mode = MODE.READ_ONLY;
+				UpdateDeisabledElements();
+				ClearAllStagesToStepsListData();
+				InitStagesList(); 
+				ReInitGUICallbacks();
+			}
+		}
+	}
+
+	/// <summary>
 	/// Общая инициализация обработчика
 	/// </summary>
 	/// <returns></returns>
@@ -651,9 +721,11 @@ public class SerializeHandler : Component, ISProvider
 	{
 		SerializerInit();
 		InitDefStageName();
+		InitDisabledElements();
 		InitStagesList();
 		InitGUIModules();
 		InitGUICallBacks();
+		InitAutoWriteProcess();
 		return this;
 	}
 
@@ -741,6 +813,57 @@ public class SerializeHandler : Component, ISProvider
 	{
 		return ConvertItemNameToEng(GetCurrentItemName());
 	}
+	
+	/// <summary>
+	/// Обновляет состояние отключаемых элементов игрового мира
+	/// </summary>
+	private void UpdateDeisabledElements()
+	{
+		switch (mode)
+		{
+			case MODE.REWRITE_AUTO:
+			case MODE.AUTO_REW_READ:
+			case MODE.REWRITE_MANUAL:
+				UpdateDeisabledElements(disabledElementsFlag = true);
+				break;
+
+			case MODE.READ_ONLY:
+				UpdateDeisabledElements(disabledElementsFlag = false);
+				break;
+		}
+	}
+
+	/// <summary>
+	/// Обновляет состояние отключаемых элементов игрового мира
+	/// </summary>
+	private void UpdateDeisabledElements(bool flag)
+	{
+		foreach (ISDisabler item in disabledElements)
+		{
+			switch (flag)
+			{
+				case true:
+					item.EnableWorldElement();
+					break;
+
+				case false:
+					item.DisableWorldElement();
+					break;
+			}
+		}
+	}
+
+	/// <summary>
+	/// Перезагружает калбеки элементов управления в графическом интерфейсе
+	/// </summary>
+	private void ReInitGUICallbacks()
+	{
+		stageListBox.RemoveCallback(Gui.CALLBACK_INDEX.CHANGED, listBoxCallbackPtr);
+		nextStepButton.RemoveCallback(Gui.CALLBACK_INDEX.CLICKED, nextStepCallbackPtr);
+		prevStepButton.RemoveCallback(Gui.CALLBACK_INDEX.CLICKED, prevStepCallbackPtr);
+
+		InitGUICallBacks();
+	}
 
 	/// <summary>
 	/// Удаляет все созданные компоненты графического интерфейса
@@ -754,6 +877,7 @@ public class SerializeHandler : Component, ISProvider
 
 	private void Shutdown()
     {
+		ClearAllStagesToStepsListData();
         RemoveGUIComponent();
     }
 }

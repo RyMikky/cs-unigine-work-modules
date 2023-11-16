@@ -8,10 +8,10 @@ public class SerializeActionHandler : SerializeBaseItem
 {
 
 	public SerializeActionHandler() {
-		this._type = SERIAL_OBJECT_TYPE.ACTION_HANDLER;
+		this.type = SERIAL_OBJECT_TYPE.ACTION_HANDLER;
 	}
 
-	private ActionManager _manager = null;
+	private ActionManager manager = null;
 
 	/// <summary>
 	/// Инициализирует скрипт управляющий менеджером действий
@@ -20,7 +20,7 @@ public class SerializeActionHandler : SerializeBaseItem
 	{
 		if (IsNode()) 
 		{
-			_manager = node.GetComponent<ActionManager>();
+			manager = node.GetComponent<ActionManager>();
 		}
 		else 
 		{
@@ -39,14 +39,14 @@ public class SerializeActionHandler : SerializeBaseItem
 		if (IsNode()) 
 		{
 			WriteTypeLabel(fileSource, DATA_BEGIN_SUFFIX);
-			if (_manager != null) 
+			if (manager != null) 
 			{
 				WriteBodyFlag(fileSource, true);                                          // флаг наличия скрипта
 
 				fileSource.WriteInt(node.ID);                                             // записываем ID текущей ноды
 				fileSource.WriteString(node.Name);                                        // записываем название текущей ноды
 
-				fileSource.WriteInt(_manager.GetActionIndex());                           // записываем индекс текущей операции
+				fileSource.WriteInt(manager.GetActionIndex());                           // записываем индекс текущей операции
 
 			}
 			else 
@@ -63,7 +63,7 @@ public class SerializeActionHandler : SerializeBaseItem
 		try 
 		{
 			// считывание объекта начнется в том случае если корректно считывается хеддер и флаг тела объекта
-			if (IsNode() && _manager != null && ReadTypeLabel(fileSource, DATA_BEGIN_SUFFIX) && fileSource.ReadBool()) 
+			if (IsNode() && manager != null && ReadTypeLabel(fileSource, DATA_BEGIN_SUFFIX) && fileSource.ReadBool()) 
 			{
 				int nodeId = fileSource.ReadInt();                                    // получаем ID текущей ноды         
 				string nodeName = fileSource.ReadString();                            // получаем название текущей ноды   
@@ -72,7 +72,7 @@ public class SerializeActionHandler : SerializeBaseItem
 				{
 					
 					int currentAction = fileSource.ReadInt();
-					_manager.SetAction(currentAction);
+					manager.SetAction(currentAction);
 		
 					if (!ReadTypeLabel(fileSource, DATA_END_SUFFIX)) throw new System.Exception("Node END_label reading is corrupt");
 				}
